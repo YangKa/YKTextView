@@ -10,6 +10,8 @@
 
 @interface YKTextView ()
 @property (nonatomic, strong) UIView *backView;
+
+@property (nonatomic, strong) UIImageView *imageView;
 @end
 
 @implementation YKTextView
@@ -18,7 +20,7 @@
    self = [super initWithFrame:frame];
     if (self) {
          self.editable = NO;
-        [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(hiddenDetailView) name:UIMenuControllerWillShowMenuNotification object:nil];
+        [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(hiddenDetailView) name:UIMenuControllerDidShowMenuNotification object:nil];
 
     }
     return self;
@@ -26,7 +28,7 @@
 
 - (void)dealloc{
 
-    [[NSNotificationCenter defaultCenter] removeObserver:self name:UIMenuControllerWillShowMenuNotification object:nil];
+    [[NSNotificationCenter defaultCenter] removeObserver:self name:UIMenuControllerDidShowMenuNotification object:nil];
 }
 
 - (void)touchesEnded:(NSSet<UITouch *> *)touches withEvent:(UIEvent *)event{
@@ -50,29 +52,67 @@
     CGFloat fraction = 0;
     NSInteger characterIndex = [self.layoutManager characterIndexForPoint:point inTextContainer:self.textContainer fractionOfDistanceBetweenInsertionPoints:&fraction];
     
+    NSLog(@"characterIndex = %ld  fraction=%f", (long)characterIndex, fraction);
+    
+    NSRange range;
+    NSTextAttachment *textAttachment = [self.attributedText attribute:NSAttachmentAttributeName atIndex:characterIndex effectiveRange:&range];
+    
     [self hiddenDetailView];
     
     if (fraction > 0 && fraction < 1) {
         
-        if (characterIndex < self.textStorage.length) {
-            
-            NSRange range = NSMakeRange(characterIndex, 1);
-            NSString *character = [self.text substringWithRange:range];
-            
-            if (![self IsChinese:character]) {
-                
-                if (![character isEqualToString:@" "]  && ![character isEqualToString:@","] && ![character isEqualToString:@"."]) {
-            
-                    [self printStrWithCharatcterIndex:characterIndex atPoint:point];
-                    
-                }
-                
-            }
-            
+        if (textAttachment){
+            [self pointAtImage:textAttachment];
+        }else{
+            [self pointInString:point atIndex:characterIndex];
         }
     }
 
 }
+
+- (void)pointAtImage:(NSTextAttachment*)textAttachment{
+    
+    if (!_imageView) {
+        
+        self.selectable = NO;
+        _imageView = [[UIImageView alloc] initWithFrame:CGRectZero];
+        _imageView.center = CGPointMake(self.frame.size.width/2, self.frame.size.height/2);
+        _imageView.image = textAttachment.image;
+        _imageView.alpha = 0.0;
+        [self addSubview:_imageView];
+        
+        [UIView animateWithDuration:0.5 animations:^{
+            _imageView.bounds = CGRectMake(0, 0, 100, 100);
+            _imageView.alpha = 1.0;
+        } completion:^(BOOL finished) {
+            [_imageView removeFromSuperview];
+            _imageView = nil;
+            self.selectable = YES;
+        }];
+        
+    }
+
+}
+
+
+- (void)pointInString:(CGPoint)point atIndex:(NSInteger)characterIndex{
+    if (characterIndex < self.textStorage.length) {
+        
+        NSRange range = NSMakeRange(characterIndex, 1);
+        NSString *character = [self.text substringWithRange:range];
+        
+        if (![self IsChinese:character]) {
+            
+            if (![character isEqualToString:@" "]  && ![character isEqualToString:@","] && ![character isEqualToString:@"."]) {
+                
+                [self printStrWithCharatcterIndex:characterIndex atPoint:point];
+                
+            }
+        }
+    }
+
+}
+
 
 -(BOOL)IsChinese:(NSString *)str {
     for(int i=0; i< [str length];i++){
@@ -161,9 +201,7 @@
 
 
 - (void)defaultAttributeText{
-    NSMutableAttributedString *str = [[NSMutableAttributedString alloc] initWithAttributedString:self.attributedText];
-    [str addAttribute:NSForegroundColorAttributeName value:[UIColor lightGrayColor] range:NSMakeRange(0, str.length)];
-    self.attributedText = str;
+    [self.textStorage addAttribute:NSForegroundColorAttributeName value:[UIColor lightGrayColor] range:NSMakeRange(0, self.textStorage.length)];
 }
 
 - (CGRect)showFrameAtPoint:(CGPoint)point{
