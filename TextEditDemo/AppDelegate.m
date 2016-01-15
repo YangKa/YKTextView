@@ -19,7 +19,10 @@
 - (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
    
     self.window = [[UIWindow alloc] initWithFrame:[UIScreen mainScreen].bounds];
-    self.window.rootViewController = [[ViewController alloc] init];
+    
+    UINavigationController *nav = [[UINavigationController alloc] initWithRootViewController:[[ViewController alloc] init]];
+    nav.navigationBar.barTintColor = [UIColor colorWithRed: 114/255.0 green:185/255.0 blue:233/255.0 alpha:1.0];
+    self.window.rootViewController = nav;
     [self.window makeKeyAndVisible];
     
     return YES;
